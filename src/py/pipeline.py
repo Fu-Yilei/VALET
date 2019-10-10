@@ -719,7 +719,7 @@ def build_bowtie2_index(index_name, reads_file):
     """
     Build a Bowtie2 index.
     """
-    command = os.path.join(base_path, "bowtie2-build ") + os.path.abspath(reads_file) + " " + os.path.abspath(index_name)
+    command =  "bowtie2-build " + os.path.abspath(reads_file) + " " + os.path.abspath(index_name)
 
     # Bad workaround.
     out_cmd(FNULL.name, FNULL.name, [command])
@@ -786,7 +786,7 @@ def run_bowtie2(options = None, output_sam = 'temp.sam'):
         return
     
     # Using bowtie 2.
-    command = os.path.join(base_path, "bowtie2 ") + bowtie2_args + " -S " + output_sam
+    command =  "bowtie2 " + bowtie2_args + " -S " + output_sam
     
     out_cmd( FNULL.name, FNULL.name,[command])
 
@@ -799,7 +799,7 @@ def run_bowtie2(options = None, output_sam = 'temp.sam'):
 
 
     if bowtie2_unaligned_check_args != "":
-        command = os.path.join(base_path, "bowtie2 ") + bowtie2_unaligned_check_args + " -S " + output_sam + "_2.sam"
+        command =  "bowtie2 " + bowtie2_unaligned_check_args + " -S " + output_sam + "_2.sam"
         out_cmd( FNULL.name,  FNULL.name, [command])
         args = shlex.split(command)
         bowtie_proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=FNULL)
