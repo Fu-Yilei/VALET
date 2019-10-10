@@ -5,7 +5,9 @@
 [VALET](https://github.com/jgluck/VALET) is a tool for validating metagenomic assemblies. These instructions assume your cluster has the following software modules already installed and loaded:
 *   miniconda3 & bioconda (make sure miniconda3/bin is in the evironment path)
 *   bowtie2:
-    conda install -c bioconda bowtie2
+    
+	conda install -c bioconda bowtie2
+
 *   cmake
 *   zlib
 *   R
