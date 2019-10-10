@@ -6,6 +6,12 @@
 ##### miniconda3 & bioconda (make sure miniconda3/bin is in the evironment path)
 	wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 	bash Miniconda3-latest-Linux-x86_64.sh
+follow the instructuctions, and re-open the shell when finished. to make sure miniconda3 is installed in the right path:
+
+	which python
+	
+if it shows the yourpath/miniconda/bin, means you made the right move. Then add bioconda:
+
 	conda config --add channels defaults
 	conda config --add channels bioconda
 	conda config --add channels conda-forge
