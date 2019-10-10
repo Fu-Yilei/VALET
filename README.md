@@ -9,9 +9,11 @@
 	conda config --add channels defaults
 	conda config --add channels bioconda
 	conda config --add channels conda-forge
-	to make sure miniconda3 is installed in the right path:
+to make sure miniconda3 is installed in the right path:
+
 	which python
-	if it shows the yourpath/miniconda/bin, means you are making the right move.
+	
+if it shows the yourpath/miniconda/bin, means you made the right move.
 ##### bowtie2:
 	conda install -c bioconda bowtie2
 ##### cmake
@@ -23,7 +25,8 @@
 ## Install Perl modules without root access:
 
     conda install -c bioconda perl-app-cpanminus
-    for successful use of REAPR:
+for successful use of REAPR:
+    
     cpanm File::Basename File::Copy File::Spec File::Spec::Link Getopt::Long List::Util
 
 ## Install VALET
