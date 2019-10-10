@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 from collections import defaultdict
-from collections import Counter
 from optparse import OptionParser
 import os
 import sys
@@ -11,13 +10,10 @@ def setup_options():
     parser = OptionParser()
     parser.add_option("-q", "--quast", dest="quast_filename", help="QUAST stdout filename.", metavar="FILE")
     parser.add_option("-g", "--gff", dest="gff_filename", help="GFF filename to compare quast results to.", metavar="FILE")
-    parser.add_option("-b", "--bed", dest="bed_filename", help="BED filename to compare quast results to.", metavar="FILE")
-    parser.add_option("-m", "--missed", dest="missed_misassemblies", help="Write out misassemblies not in bed or gff file but identified by QUAST", metavar="FILE", default=None)
-    parser.add_option("-o", "--offset", dest="offset", type="int", default=0)
     (options,args) = parser.parse_args()
 
-    if options.quast_filename == None or (options.gff_filename == None and options.bed_filename == None):
-        parser.error("You failed to provide the a QUAST file or VALET file (BED or GFF).")
+    if options.quast_filename == None or options.gff_filename == None:
+        parser.error("You failed to provide the QUAST or GFF file.")
 
     return (options,args)
 
@@ -101,18 +97,6 @@ def get_misassemblies_from_gff(gff_filename):
 
     return misassemblies
 
-def get_misassemblies_from_bed(bed_filename):
-
-    misassemblies = []
-
-    for line in open(bed_filename, 'r'):
-        # CHROM/Contig  start   end error_type
-        # ctg7180000018158	740	772	Low_coverage	0	.	741	1017	0,0,255
-        tuple = line.strip().split()
-
-        misassemblies.append([tuple[3], tuple[0], int(tuple[1]), int(tuple[2])])
-
-    return misassemblies
 
 def overlap(a,b):
     return a[0] <= b[0] <= a[1] or b[0] <= a[0] <= b[1]
@@ -121,159 +105,39 @@ def getOverlap(a, b):
     return max(-1, min(a[1], b[1]) - max(a[0], b[0]))
 
 
-def get_start_end_interval(ref, query, i = 0, j = -1):
-    """
-    Return the start and end points in the query where the ref contig matches.
-    """
-    #print 'start find interval'
-    #print ref 
-    #print i,j
-    if i >= len(query):
-        return i, j
-    #print query[i][1] + '\tlen: '  + str(len(query))
-    
-    #print ref + '\t' + query[i][1]
-
-    # If the current reference name matches the current query start, don't change anything!
-    if ref == query[i][1]:
-
-        # If the end point hasn't been set before, set it now.
-        if j == -1:
-            # While the ref contig equals query, increment the end position
-            j = 0
-            while ref >= query[j][1]:
-                j += 1
-                #print ref + '\t' + query[j][1]
-
-        while j < len(query) and ref >= query[j][1]:
-            #print ref + '\tvs.\t' + query[j][1]
-            #print ref + '\t' + query[j][1]
-            j += 1
-
-        #print 'Not changing anything!'
-        return i, j
-
-    #i = curr_start
-    #print "adjusting i"
-    while i < len(query) and ref > query[i][1]:
-        #print ref 
-        #print query[i][1]
-        #print ref + '\t' + query[i][1]
-        i += 1
-
-    if i == len(query):
-        return i, i
-
-    j = i + 1
-    #print "adjusting j"
-    #print 'UH: ' + query[j][1]
-    # While the ref contig equals query, increment the end position
-    while j < len(query) and ref >= query[j][1]:
-        #print ref + '\tvs.\t' + query[j][1]
-        #print ref + '\t' + query[j][1]
-        j += 1
-
-    #print 'returning ',
-    #print i, j
-    return i, j
-
-
 def main():
 
     (options, args) = setup_options()
-    
-    ## Misassemblies identified with reference base method e.g. QUAST
+
     ref_misassemblies = get_misassemblies_from_quast(options.quast_filename)
-    ref_misassemblies.sort(key = lambda misassembly: (misassembly[1], int(misassembly[2])))
-    #print '\n'.join(str(i) for i in ref_misassemblies)
     
-    ## Misassemblies identified with read base method e.g. VALET
-    if options.gff_filename:
-        read_misassemblies = get_misassemblies_from_gff(options.gff_filename)
-    else:
-        read_misassemblies = get_misassemblies_from_bed(options.bed_filename)
-    
-    #print '\n'.join(str(i) for i in read_misassemblies)
-    read_misassemblies.sort(key = lambda misassembly: (misassembly[1], int(misassembly[2])))
+    gff_misassemblies = get_misassemblies_from_gff(options.gff_filename)
 
     ref_misassembly_count = 0
-    extensive_misassembly_count = 0
-    local_misassembly_count = 0
     query_misassembly_count = 0
 
-    missed_misassemblies = None
-    
-    if options.missed_misassemblies:
-        missed_misassemblies = open(options.missed_misassemblies, 'w')
-
-    prev_contig = ref_misassemblies[1]
-    start, end = 0, -1 #get_start_end_interval(prev_contig, read_misassemblies, 0, -1)
-    #print ref_misassembly
-    #print 'start, end:\t' + str(start) + '\t' + str(end)
-
-
-    read_misassembly = None
-    prev_query_misassembly = None
-
-    comparison_results = []
     for ref_misassembly in ref_misassemblies:
         found_misassembly = False
 
-        start, end = get_start_end_interval(ref_misassembly[1], read_misassemblies, start, end)
-        #print ref_misassembly
-        #print 'start, end:\t' + str(start) + '\t' + str(end)
-        
-        for index in xrange(start, end):# len(gff_misassemblies)):
-            read_misassembly = read_misassemblies[index]
-            #for read_misassembly in read_misassemblies:
-            #print read_misassembly
-            #print 'Comparing ',
-            #print ref_misassembly,
-            #print '\tWITH\t',
-            #print read_misassembly
-            
-            if ref_misassembly[1] == read_misassembly[1]:
-                if getOverlap([ref_misassembly[2] - options.offset, ref_misassembly[3] + options.offset], \
-                        [read_misassembly[2], read_misassembly[3]]) >= 0:
-                    comparison_results.append("\t".join(map(str,ref_misassembly)) +"\t" + "\t".join(map(str,read_misassembly)))
-                    #print ref_misassembly
-                    #print gff_misassembly
-                    #print '****'
+        for gff_misassembly in gff_misassemblies:
+            #print gff_misassembly
+            if ref_misassembly[1] == gff_misassembly[1]:
+                if getOverlap([ref_misassembly[2], ref_misassembly[3]], \
+                        [gff_misassembly[2], gff_misassembly[3]]) >= 0:
+                    print ref_misassembly
+                    print gff_misassembly
+                    print '****'
 
-                    if (read_misassembly[1]  + '_' + str(read_misassembly[2]) + '_' + str(read_misassembly[3])) != prev_query_misassembly:
-                        query_misassembly_count += 1
+                    query_misassembly_count += 1
                     found_misassembly = True
-
-                    prev_query_misassembly = read_misassembly[1]  + '_' + str(read_misassembly[2]) + '_' + str(read_misassembly[3])
-
 
         if found_misassembly:
             ref_misassembly_count += 1
-            if ref_misassembly[0] == 'extensive':
-                extensive_misassembly_count += 1
-            else:
-                local_misassembly_count += 1
 
-
-        else:
-            if options.missed_misassemblies:
-                missed_misassemblies.write('\t'.join(map(str,ref_misassembly)) + '\n')
-
-
-    counter = Counter(elem[0] for elem in ref_misassemblies)
-    print "## VALET-QUAST Comparison output"
-    print "## Comparison summary"
-    print '## Ref misassemblies found:\t' + str(int(ref_misassembly_count)) + '\t' + str(len(ref_misassemblies)) + '\t' + str(float(ref_misassembly_count)/len(ref_misassemblies))
-    print '## Extensive misassemblies found:\t' + str(float(extensive_misassembly_count)) + '\t' + str(counter['extensive']) + '\t' + str(float(extensive_misassembly_count)/counter['extensive'])
-    print '## Local missed_misassemblies found:\t' + str(float(local_misassembly_count)) + '\t' + str(counter['local']) + '\t' + ("0" if counter['local'] == 0 else str(float(local_misassembly_count)/counter['local']))
-    print '## Valid query misassemblies:\t' + str(float(query_misassembly_count)/len(read_misassemblies))
-    print '## False positive rate:\t' + str(len(read_misassemblies) - int(query_misassembly_count)) + '\t' + str(len(read_misassemblies)) + '\t' + str((len(read_misassemblies) - float(query_misassembly_count))/len(read_misassemblies))
-
-    print "## Q_ indicates quast misassembly calls"
-    print "## V_ indicates VALET missassembly calls"
-    print "## Type - type of error call, Scaffold - scaffold name, Start - start position of candidate misassembly, End - end position of candidate misassembly"
-    print "Q_Type\tQ_Scaffold\tQ_Start\tQ_End\tV_Type\tV_Scaffold\tV_Start\tV_End"
-    print "\n".join(comparison_results)
+    print 'Ref misassemblies found: ' + str(float(ref_misassembly_count)/len(ref_misassemblies))
+    print 'Valid query misassemblies: ' + str(float(query_misassembly_count)/len(gff_misassemblies))
+    print 'False positive rate: ' + str((len(gff_misassemblies) - float(query_misassembly_count))/len(gff_misassemblies))
+                
 
 
 if __name__ == '__main__':

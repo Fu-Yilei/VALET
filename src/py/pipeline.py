@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from collections import defaultdict
-from collections import deque
 from subprocess import call
 from optparse import OptionParser
 from tempfile import mkstemp
@@ -17,7 +16,7 @@ import resource
 
 FNULL = open('/dev/null', 'w')
 base_path = os.path.dirname(sys.argv[0])[:-len('src/py/')]
-file_limit = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
+file_limit = resource.getrlimit(resource.RLIMIT_NOFILE)[1] 
 
 class bcolors:
     HEADER = '\033[95m'
@@ -28,38 +27,38 @@ class bcolors:
     ENDC = '\033[0m'
 
 def main():
-
+   
     (options, args) = get_options()
 
     start_time = time.time()
     fasta_file = options.fasta_file
 
     error_files = []
-
+    
     reads_untrimmed_location = [options.first_mates, options.second_mates]
     reads_trimmed_location = []
-
+ 
     shell_file = options.output_dir + "/commands.sh"
 
     sam_output_location_dir = options.output_dir + "/sam/"
     sam_output_location = sam_output_location_dir + "library.sam"
-
+    
     singleton_output_dir = options.output_dir + "/singleton/"
     singleton_output_location = singleton_output_dir + "singletons.csv"
 
     ensure_dir(sam_output_location_dir)
     ensure_dir(singleton_output_dir)
-
+ 
     global shell_file_fp
     shell_file_fp = open(shell_file, 'w')
     setup_shell_file()
 
     bins_dir = options.output_dir + "/bins/"
     ensure_dir(bins_dir)
-
+ 
     input_fasta_saved = options.fasta_file
     output_dir_saved = options.output_dir
-
+    
     all_contig_lengths = {}
 
     if options.min_contig_length > 0:
@@ -82,14 +81,11 @@ def main():
         step("CALCULATING CONTIG COVERAGE")
         options.coverage_file = calculate_contig_coverage(options, pileup_file)
         results(options.coverage_file)
-        pileup_file = run_abundance_by_kmers(options)
-        results(options.coverage_file)
-    contig_abundances = get_contig_abundances(options.coverage_file)
 
     step("CALCULATING ASSEMBLY PROBABILITY")
     run_lap(options, sam_output_location, reads_trimmed_location)
 
-    if options.threads > 1:
+    if int(options.threads) > 1:
         step("PARTITIONING COVERAGE FILE")
         run_split_pileup(options, pileup_file)
 
@@ -103,7 +99,7 @@ def main():
     outputBreakpointDir = options.output_dir + "/breakpoint/"
     ouputBreakpointLocation = outputBreakpointDir + "errorsDetected.csv"
     ensure_dir(outputBreakpointDir)
-
+    
     step("BREAKPOINT")
     error_files.append(run_breakpoint_finder(options,\
             unaligned_dir, outputBreakpointDir))
@@ -122,21 +118,21 @@ def main():
         #warning("Bin dir is: %s" % bin_dir)
         sam_output_location_dir = options.output_dir + '/sam/'
         sam_output_location = sam_output_location_dir + 'library.sam'
-
+        
         step("RUNNING SAMTOOLS ON COVERAGE BIN " + coverages)
         bam_location, sorted_bam_location, pileup_file = \
                 run_samtools(options, sam_output_location, with_pileup=False)
 
         #step("DEPTH OF COVERAGE")
         #error_files.append(run_depth_of_coverage(options, pileup_file))
-
+        
         step("MATE-PAIR HAPPINESS ON COVERAGE BIN " + coverages)
         try:
             error_files.append(run_reapr(options, sorted_bam_location))
         except:
             e = sys.exc_info()[0]
             error("Reapr failed to run with: %s" %  str(e))
-
+    
     options.output_dir = output_dir_saved
     options.fasta_file = input_fasta_saved
 
@@ -172,7 +168,7 @@ def main():
             summary_file.write('\t'.join(misassembly) + '\n')
 
             final_misassemblies.append(misassembly)
-
+    
     summary_file.close()
 
     results(options.output_dir + "/summary.gff")
@@ -181,7 +177,7 @@ def main():
     #===
     orf_filtered_misassemblies = []
     if options.orf_file:
-
+        
         call_arr = ["sort", "-T ./", "-k1,1",  "-k4,4n", options.orf_file, "-o", options.output_dir + "/" + options.orf_file + "_sorted"]
         out_cmd(FNULL.name, FNULL.name, call_arr)
         call(call_arr)
@@ -206,7 +202,7 @@ def main():
         split_cur_orf = cur_orf.split('\t')
         split_cur_orf[3],split_cur_orf[4]  = int(split_cur_orf[3]),int(split_cur_orf[4])
         #Cycle through misassemblies
-        for cur_missassembly in summary_file:
+        for cur_missassembly in summary_file: 
             split_mis = cur_missassembly.split('\t')
             split_mis[3],split_mis[4] = int(split_mis[3]), int(split_mis[4])
             while True:
@@ -257,44 +253,41 @@ def main():
 
 
     # Find regions with multiple misassembly signatures.
-    #suspicious_regions = find_suspicious_regions(misassemblies, options.min_suspicious_regions)
-    suspicious_regions = find_sliding_suspicious_regions(final_misassemblies, options.suspicious_window_size, options.min_suspicious_regions)
+    suspicious_regions = find_suspicious_regions(misassemblies, options.min_suspicious_regions)
     final_suspicious_misassemblies = []
     for region in suspicious_regions:
-        #if int(region[3]) > options.ignore_end_distances and \
-        #    int(region[4]) <= (contig_lengths[region[0]] - options.ignore_end_distances):
-        if int(region[4]) > (contig_lengths[region[0]] - options.ignore_end_distances):
-            region[4] = str(contig_lengths[region[0]] - options.ignore_end_distances)
-        suspicious_file.write('\t'.join(region) + '\n')
-        final_suspicious_misassemblies.append(region)
+        if int(region[3]) > options.ignore_end_distances and \
+                int(region[4]) <= (contig_lengths[region[0]] - options.ignore_end_distances):
+            suspicious_file.write('\t'.join(region) + '\n')
+            final_suspicious_misassemblies.append(region)
 
     results(options.output_dir + "/suspicious.gff")
 
     # Output summary table.
     generate_summary_table(options.output_dir + "/summary.tsv", all_contig_lengths, \
-        contig_lengths, contig_abundances, final_misassemblies)
+        contig_lengths, final_misassemblies)
     results(options.output_dir + "/summary.tsv")
-
+    
     if options.orf_file:
         generate_summary_table(options.output_dir + "/orf_summary.tsv", \
-                all_contig_lengths, contig_lengths, contig_abundances, orf_filtered_misassemblies,orf=True)
+                all_contig_lengths, contig_lengths, orf_filtered_misassemblies,orf=True)
         joined_summary_fp = open(options.output_dir + "/joined_summary.tsv", 'w')
         call_arr = ["join", "-a1" , "-o", "0", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.8", "1.9", "1.10", "2.3","2.4","2.5","2.6","2.7","2.8","2.9","2.10", '-e',  "0", '-1', '1', '-2', '1' , "-t", '	', options.output_dir + "/summary.tsv", options.output_dir + "/orf_summary.tsv"]
         out_cmd(joined_summary_fp.name, FNULL.name, call_arr)
         call(call_arr, stdout = joined_summary_fp, stderr = FNULL)
 
-
+ 
 
     # Output suspicious table.
     #generate_summary_table(options.output_dir + "/suspicious.tsv", all_contig_lengths, \
     #    contig_lengths, final_suspicious_misassemblies)
 
     #results(options.output_dir + "/suspicious.tsv")
-
+    
     if options.email:
         notify_complete(options.email,time.time()-start_time)
-
-
+    
+   
 def get_options():
     parser = OptionParser()
     parser.add_option("-a", "--assembly-fasta", dest="fasta_file", \
@@ -310,10 +303,10 @@ def get_options():
     parser.add_option("-o", "--output-dir", dest="output_dir", \
             help = "Output directory", default="data/output/")
     parser.add_option("-w", "--window-size", dest="window_size", \
-            help = "Sliding window size when determining misassemblies.", default = "201")
+            help = "Sliding window size when determining misassemblies.", default = "200")
     parser.add_option("-q", "--fastq", dest="fastq_file", \
             default=False, action='store_true', \
-            help="if set, input reads are fastq format (fasta by default).")
+            help="if set, input reads are fastq format (fasta by default).")    
     parser.add_option("-p", "--threads", dest="threads", \
             help = "Number of threads", default="8")
     parser.add_option("-I", "--minins", dest="min_insert_size", \
@@ -336,17 +329,13 @@ def get_options():
             help="When binning by coverage, the new high = high + high * multiplier")
     parser.add_option("-s", "--min-suspicious", dest="min_suspicious_regions", default=2, type=int, \
             help="Minimum number of overlapping flagged miassemblies to mark region as suspicious.")
-    parser.add_option("-d", "--suspicious-window-size", dest="suspicious_window_size", default=2000, type=int, \
-            help="Mark region as suspicious if multiple signatures occur within this window size.")
     parser.add_option('-z', "--min-contig-length", dest="min_contig_length", default=1000, type=int, \
             help="Ignore contigs smaller than this length.")
     parser.add_option('-b', "--ignore-ends", dest="ignore_end_distances", default=0, type=int, \
-            help="Ignore flagged regions within b bps from the ends of the contigs.")
+            help="Ignore flagged regions within b bps from the ends of the contigs.") 
     parser.add_option('-k', "--breakpoint-bin", dest="breakpoints_bin", default="50", type=str, \
-            help="Bin sized used to find breakpoints.")
+            help="Bin sized used to find breakpoints.")   
     parser.add_option('-f', "--orf-file", dest="orf_file", help="gff formatted file containing orfs")
-    parser.add_option("--kmer", dest="kmer_length", help="kmer length used for abundance estimation", \
-            default = "15")
 
     (options, args) = parser.parse_args()
 
@@ -362,9 +351,9 @@ def get_options():
     #    should_err = True
     if not options.coverage_file:
         warning("Coverage file not provided, will create one.")
-
+        
         #should_err = True
-
+    
     if should_err:
         parser.print_help()
         exit(-1)
@@ -418,6 +407,7 @@ def results(*objs):
 def warning(*objs):
     print("INFO:\t",*objs, file=sys.stderr)
 
+
 def error(*objs):
     print(bcolors.WARNING + "ERROR:\t" + bcolors.ENDC, *objs, file=sys.stderr)
 
@@ -436,7 +426,7 @@ def filter_short_contigs(options):
     with open(options.fasta_file,'r') as assembly:
         for contig in contig_reader(assembly):
             curr_length = len(''.join(contig['sequence']))
-
+            
             if curr_length >= options.min_contig_length:
                 filtered_assembly_file.write(contig['name'])
                 filtered_assembly_file.writelines(contig['sequence'])
@@ -465,116 +455,13 @@ def get_contig_lengths(sam_filename):
 
         if line.startswith("@SQ"):
             matches = pattern.search(line)
-
+            
             if len(matches.groups()) == 2:
                 contig_lengths[matches.group('contig')] = int(matches.group('length'))
 
         line = sam_file.readline()
 
     return contig_lengths
-
-
-def get_contig_abundances(abundance_filename):
-    """
-    Return a dictionary of contig names => contig abundances from the '/coverage/temp.cvg'.
-    """
-
-    abundance_file = open(abundance_filename, 'r')
-
-    # Build a dictionary of contig abundances.
-    contig_abundances = {}
-
-    for line in abundance_file:
-        contig_and_abundance = line.strip().split()
-        contig_abundances[contig_and_abundance[0]] = int(round(float(contig_and_abundance[1])))
-
-    return contig_abundances
-
-
-def find_sliding_suspicious_regions(misassemblies, sliding_window = 2000, min_cutoff = 2):
-    """
-    Output any region that has multiple misassembly signature types within the sliding window.
-    """
-
-    regions =[]
-
-    for misassembly in misassemblies:
-        regions.append([misassembly[0], misassembly[3], 'START', misassembly[2]])
-        regions.append([misassembly[0], misassembly[4], 'END', misassembly[2]])
-
-    regions.sort(key = lambda region: (region[0], int(region[1])))
-
-    """
-    Example:
-
-    relocref        36601   START   Breakpoint_finder
-    relocref        36801   END     Breakpoint_finder
-    relocref        67968   START   REAPR
-    relocref        68054   START   REAPR
-    relocref        69866   END     REAPR
-    relocref        69867   START   REAPR
-    relocref        71833   END     REAPR
-    relocref        73001   START   Breakpoint_finder
-    relocref        73201   END     Breakpoint_finder
-    """
-
-    # Store all the signatures, starting, and ending points within a given window.
-    #start_points = deque([])
-    #end_points = deque([])
-    #signatures = deque([])
-
-    signatures = []
-    curr_contig = None
-    count = 0
-    suspicious_regions = []
-
-    for index in xrange(0, len(misassemblies)):
-
-        curr_contig = misassemblies[index][0]
-
-        count = 0
-        second_index = index + 1
-        signatures = [misassemblies[index][2]]
-        start_point = int(misassemblies[index][3])
-        end_point = int(misassemblies[index][4]) + sliding_window
-
-        # While we are on the same contig, and still in the sliding window...
-        while second_index < len(misassemblies) and \
-                misassemblies[second_index][0] == curr_contig and \
-                int(misassemblies[second_index][3]) < (int(misassemblies[index][4]) + sliding_window):
-
-            if misassemblies[second_index][2] not in signatures:
-                signatures.append(misassemblies[second_index][2])
-                count += 1
-
-            if int(misassemblies[second_index][4]) > end_point:
-                end_point = int(misassemblies[second_index][4])
-            second_index += 1
-
-        if len(signatures) >= min_cutoff:
-            suspicious_regions.append([misassemblies[index][0], '.', 'SUSPICIOUS', str(start_point), str(end_point), '.', '.', '.', 'color=#181009;' + ','.join(signatures)])
-
-
-    # Hack to correct for overlapping suspicious regions.
-    compressed_suspicious_regions = []
-
-    prev_region = None
-    for region in suspicious_regions:
-
-        if prev_region is None:
-            prev_region = region
-        else:
-            if prev_region[0] == region[0] and int(prev_region[4]) >= int(region[3]):
-                prev_region[4] = region[4]
-            else:
-                compressed_suspicious_regions.append(prev_region)
-                prev_region = region
-
-
-    if prev_region:
-        compressed_suspicious_regions.append(prev_region)
-
-    return compressed_suspicious_regions
 
 
 def find_suspicious_regions(misassemblies, min_cutoff = 2):
@@ -593,15 +480,15 @@ def find_suspicious_regions(misassemblies, min_cutoff = 2):
     """
     Example:
 
-    relocref        36601   START   Breakpoint_finder
-    relocref        36801   END     Breakpoint_finder
+    relocref        36601   START   Breakpoint_finder                                    
+    relocref        36801   END     Breakpoint_finder                                    
     relocref        67968   START   REAPR
     relocref        68054   START   REAPR
     relocref        69866   END     REAPR
     relocref        69867   START   REAPR
     relocref        71833   END     REAPR
-    relocref        73001   START   Breakpoint_finder
-    relocref        73201   END     Breakpoint_finder
+    relocref        73001   START   Breakpoint_finder                                    
+    relocref        73201   END     Breakpoint_finder   
     """
 
     curr_contig = None
@@ -645,11 +532,11 @@ def find_suspicious_regions(misassemblies, min_cutoff = 2):
             start_indexes.append(region[1])
 
         else:
-
+            
             curr_coverage -= 1
 
             end_index = region[1]
-            if region[3] in signatures: signatures.remove(region[3])
+            if region[3] in signatures: signatures.remove(region[3]) 
 
             # If we were recording, and min signatures drop belows threshold,
             # then we need to output our results
@@ -685,21 +572,21 @@ def find_suspicious_regions(misassemblies, min_cutoff = 2):
     return compressed_suspicious_regions
 
 
-def generate_summary_table(table_filename, all_contig_lengths, filtered_contig_lengths, contig_abundances, misassemblies, orf=False):
+def generate_summary_table(table_filename, all_contig_lengths, filtered_contig_lengths, misassemblies,orf=False):
     """
     Output the misassemblies in a table format:
 
     contig_name  contig_length  low_cov  low_cov_bps  high_cov  high_cov_bps ...
     CONTIG1 12000   1   100 0   0 ...
-    CONTIG2 100 NA  NA  NA ...
+    CONTIG2 100 NA  NA  NA ...  
     """
 
     table_file = open(table_filename, 'w')
 
     if orf:
-        table_file.write("contig_name\tcontig_length\tabundance\torf_low_cov\torf_low_cov_bps\torf_high_cov\torf_high_cov_bps\torf_reapr\torf_reapr_bps\torf_breakpoints\torf_breakpoints_bps\n")
+        table_file.write("contig_name\tcontig_length\torf_low_cov\torf_low_cov_bps\torf_high_cov\torf_high_cov_bps\torf_reapr\torf_reapr_bps\torf_breakpoints\torf_breakpoints_bps\n")
     else:
-        table_file.write("contig_name\tcontig_length\tabundance\tlow_cov\tlow_cov_bps\thigh_cov\thigh_cov_bps\treapr\treapr_bps\tbreakpoints\tbreakpoints_bps\n")
+        table_file.write("contig_name\tcontig_length\tlow_cov\tlow_cov_bps\thigh_cov\thigh_cov_bps\treapr\treapr_bps\tbreakpoints\tbreakpoints_bps\n")
 
     prev_contig = None
     curr_contig = None
@@ -707,7 +594,7 @@ def generate_summary_table(table_filename, all_contig_lengths, filtered_contig_l
     # Misassembly signatures
     low_coverage = 0
     low_coverage_bps = 0
-    high_coverage = 0
+    high_coverage = 0   
     high_coverage_bps = 0
     reapr = 0
     reapr_bps = 0
@@ -730,7 +617,7 @@ def generate_summary_table(table_filename, all_contig_lengths, filtered_contig_l
 
         if curr_contig != prev_contig:
             # Output previous contig stats.
-            table_file.write(prev_contig + '\t' + str(filtered_contig_lengths[prev_contig]) + '\t' + str(contig_abundances[prev_contig]) + '\t' + \
+            table_file.write(prev_contig + '\t' + str(filtered_contig_lengths[prev_contig]) + '\t' + \
                 str(low_coverage) + '\t' + str(low_coverage_bps) + '\t' + str(high_coverage) + '\t' + \
                 str(high_coverage_bps) + '\t' + str(reapr) + '\t' + str(reapr_bps) + '\t' + str(breakpoints) + '\t' + \
                 str(breakpoints_bps) + '\n')
@@ -740,7 +627,7 @@ def generate_summary_table(table_filename, all_contig_lengths, filtered_contig_l
             # Reset misassembly signature counts.
             low_coverage = 0
             low_coverage_bps = 0
-            high_coverage = 0
+            high_coverage = 0   
             high_coverage_bps = 0
             reapr = 0
             reapr_bps = 0
@@ -751,9 +638,8 @@ def generate_summary_table(table_filename, all_contig_lengths, filtered_contig_l
 
         # Process the current contig misassembly.
         if misassembly[1] == 'REAPR':
-            if 'Warning' not in misassembly[8]:
-                reapr += 1
-                reapr_bps += (int(misassembly[4]) - int(misassembly[3]) + 1)
+            reapr += 1
+            reapr_bps += (int(misassembly[4]) - int(misassembly[3]) + 1)
 
         elif misassembly[1] == 'DEPTH_COV':
             if misassembly[2] == 'Low_coverage':
@@ -772,7 +658,7 @@ def generate_summary_table(table_filename, all_contig_lengths, filtered_contig_l
 
     if prev_contig:
         # Output previous contig stats.
-        table_file.write(prev_contig + '\t' + str(filtered_contig_lengths[prev_contig]) + '\t' + str(contig_abundances[prev_contig]) + '\t' + \
+        table_file.write(prev_contig + '\t' + str(filtered_contig_lengths[prev_contig]) + '\t' + \
             str(low_coverage) + '\t' + str(low_coverage_bps) + '\t' + str(high_coverage) + '\t' + \
             str(high_coverage_bps) + '\t' + str(reapr) + '\t' + str(reapr_bps) + '\t' + str(breakpoints) + '\t' + \
             str(breakpoints_bps) + '\n')
@@ -782,7 +668,7 @@ def generate_summary_table(table_filename, all_contig_lengths, filtered_contig_l
     # We need to add the remaining, error-free contigs.
     for contig in filtered_contig_lengths:
         if contig not in processed_contigs:
-            table_file.write(contig + '\t' + str(filtered_contig_lengths[contig]) + '\t' + str(contig_abundances[contig]) + '\t' + \
+            table_file.write(contig + '\t' + str(filtered_contig_lengths[contig]) + '\t' + \
                 '0\t0\t0\t0\t0\t0\t0\t0\n')
             processed_contigs.add(contig)
 
@@ -790,7 +676,7 @@ def generate_summary_table(table_filename, all_contig_lengths, filtered_contig_l
     # Finally, add the contigs that were filtered out prior to evaluation.
     for contig in all_contig_lengths:
         if contig not in processed_contigs:
-            table_file.write(contig + '\t' + str(all_contig_lengths[contig]) + '\t' + 'NA\t' + \
+            table_file.write(contig + '\t' + str(all_contig_lengths[contig]) + '\t' + \
                 'NA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\n')
             processed_contigs.add(contig)
 
@@ -833,7 +719,7 @@ def build_bowtie2_index(index_name, reads_file):
     """
     Build a Bowtie2 index.
     """
-    command = os.path.join(base_path, "bin/bowtie2-2.2.2/bowtie2-build ") + os.path.abspath(reads_file) + " " + os.path.abspath(index_name)
+    command = os.path.join(base_path, "bowtie2-build ") + os.path.abspath(reads_file) + " " + os.path.abspath(index_name)
 
     # Bad workaround.
     out_cmd(FNULL.name, FNULL.name, [command])
@@ -861,7 +747,7 @@ def run_bowtie2(options = None, output_sam = 'temp.sam'):
         os.mkdirs(os.path.dirname(index_path))
     except:
         pass
-
+    
     fasta_file = options.fasta_file
 
     build_bowtie2_index(os.path.abspath(index_path), os.path.abspath(fasta_file))
@@ -875,7 +761,7 @@ def run_bowtie2(options = None, output_sam = 'temp.sam'):
     read_type = " -f "
     if options.fastq_file:
         read_type = " -q "
-
+    
     bowtie2_args = ""
     bowtie2_unaligned_check_args = ""
     if options.first_mates:
@@ -885,11 +771,11 @@ def run_bowtie2(options = None, output_sam = 'temp.sam'):
                 + options.orientation + " -I " + options.min_insert_size\
                 + " -X " + options.max_insert_size + " --no-mixed" #+ " --un-conc "\
                 #+ unaligned_file
-
+        
         bowtie2_unaligned_check_args = "-a -x " + assembly_index + read_type + " -U "\
                 + options.first_mates + "," + options.second_mates + " --very-sensitive -a "\
                 + " --reorder -p " + options.threads + " --un " + unaligned_file
-
+ 
     else:
         bowtie2_args = "-a -x " + assembly_index + read_type + " -U "\
                 + options.reads_filenames + " --very-sensitive -a "\
@@ -898,22 +784,22 @@ def run_bowtie2(options = None, output_sam = 'temp.sam'):
     if not options:
         sys.stderr.write("[ERROR] No Bowtie2 options specified" + '\n')
         return
-
+    
     # Using bowtie 2.
-    command = os.path.join(base_path, "bin/bowtie2-2.2.2/bowtie2 ") + bowtie2_args + " -S " + output_sam
-
+    command = os.path.join(base_path, "bowtie2 ") + bowtie2_args + " -S " + output_sam
+    
     out_cmd( FNULL.name, FNULL.name,[command])
 
 
     #call(command.split())
-    args = shlex.split(command)
+    args = shlex.split(command) 
     bowtie_proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=FNULL)
     bowtie_output, err = bowtie_proc.communicate()
-
+ 
 
 
     if bowtie2_unaligned_check_args != "":
-        command = os.path.join(base_path, "bin/bowtie2-2.2.2/bowtie2 ") + bowtie2_unaligned_check_args + " -S " + output_sam + "_2.sam"
+        command = os.path.join(base_path, "bowtie2 ") + bowtie2_unaligned_check_args + " -S " + output_sam + "_2.sam"
         out_cmd( FNULL.name,  FNULL.name, [command])
         args = shlex.split(command)
         bowtie_proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=FNULL)
@@ -934,7 +820,7 @@ def run_breakpoint_finder(options,unaligned,breakpoint_dir):
     out_cmd( "", std_err_file.name, call_arr)
     call(call_arr, stderr=std_err_file)
     std_err_file.close()
-
+    
     std_err_file = open(breakpoint_dir + 'std_err.log','w')
     call_arr = [os.path.join(base_path, 'src/py/breakpoint_finder.py'),\
             '-a', options.fasta_file,\
@@ -983,8 +869,8 @@ def split_sam_by_bin(sam_output_location, contig_to_bin_map, bin_dir_dict):
                     if line_split[2] in contig_to_bin_map:
                         bin = contig_to_bin_map[line_split[2]]
                         output_fp[bin].write(line)
-
-
+    
+        
 def increment_coverage_window(options, low, high):
     """ Find new low/high boundaries for coverage bins. """
 
@@ -993,7 +879,7 @@ def increment_coverage_window(options, low, high):
     high = int(high + high * options.coverage_multiplier)
     if high == prev_high:
         high = high + 1
-    #warning("Incremented coverage window to: %d -~-  %d" % (low, high))
+    warning("Incremented coverage window to: %d -~-  %d" % (low, high))
     return low, high
 
 
@@ -1022,7 +908,7 @@ def bin_coverage(options, bin_dir):
     curr_bin = 0
     bins = []
     while len(contig_to_bin_map) < len(contig_to_coverage_map):
-        slice_dict = {k: v for k,v in contig_to_coverage_map.iteritems() if low<=v and high>v}
+        slice_dict = {k: v for k,v in contig_to_coverage_map.items() if low<=v and high>v}
         for contig in slice_dict.keys():
             contig_to_bin_map[contig] = curr_bin
 
@@ -1051,7 +937,7 @@ def bin_coverage(options, bin_dir):
         else:
             unopened_fp[bin] = a_new_bin + os.path.basename(options.fasta_file)
 
-
+        
         #fp_dict[bin].close()
         #fp_dict[bin] = a_new_bin + os.path.basename(options.fasta_file)
     warning("Contig to bin map is: %s" %(str(contig_to_bin_map)))
@@ -1067,18 +953,18 @@ def bin_coverage(options, bin_dir):
                             bin_file.writelines(contig['sequence'])
                 else:
                     warning("Throwing away contig: %s due to not being in contig_to_bin_map" % (contig['name'][1:].strip()))
-
-        temp_key_list = fp_dict.keys()[:]
+        
+        temp_key_list = list(fp_dict.keys())[:]
         for bin in temp_key_list:
             fp_dict[bin].close()
             open_fp_count -= 1
             processed_file_names[bin] = fp_dict[bin]
             del fp_dict[bin]
-
+        
         if len(unopened_fp.keys()) == 0:
             break
 
-        temp_key_list = unopened_fp.keys()[:]
+        temp_key_list = list(unopened_fp.keys())[:]
         for bin in temp_key_list:
             if open_fp_count < (file_limit /2 ):
                 fp_dict[bin] = open(unopened_fp[bin],'w')
@@ -1121,7 +1007,7 @@ def contig_reader(fasta_file):
 def run_lap(options, sam_output_location, reads_trimmed_location):
     """ Calculate the LAP using the previously computed SAM file. """
     output_probs_dir = options.output_dir + "/lap/"
-
+    
     ensure_dir(output_probs_dir)
     output_probs_location = output_probs_dir + "output.prob"
     fp = open(output_probs_location, "w")
@@ -1160,13 +1046,13 @@ def run_samtools(options, sam_output_location, with_pileup = True, index=False):
     error_fp = open(error_file_location, 'w+')
 
     #warning("About to run samtools view to create bam")
-    call_arr = [os.path.join(base_path, "bin/Reapr_1.0.17/src/samtools"), "view", "-bS", sam_output_location]
+    call_arr = [os.path.join(base_path, "bin/Reapr_1.0.18/src/samtools"), "view", "-bS", sam_output_location]
     out_cmd(bam_fp.name, error_fp.name, call_arr)
     #warning("That command outputs to file: ", bam_location)
     call(call_arr, stdout = bam_fp, stderr = error_fp)
 
     #warning("About to attempt to sort bam")
-    call_arr = [os.path.join(base_path, "bin/Reapr_1.0.17/src/samtools"), "sort", bam_location, sorted_bam_location]
+    call_arr = [os.path.join(base_path, "bin/Reapr_1.0.18/src/samtools"), "sort", bam_location, sorted_bam_location]
     out_cmd( "", FNULL.name, call_arr)
     call(call_arr, stderr = FNULL)
 
@@ -1176,14 +1062,14 @@ def run_samtools(options, sam_output_location, with_pileup = True, index=False):
     p_fp = open(pileup_file, 'w')
 
     if with_pileup:
-        call_arr = [os.path.join(base_path, "bin/Reapr_1.0.17/src/samtools"), "mpileup", "-A", "-f", options.fasta_file, sorted_bam_location + ".bam"]
+        call_arr = [os.path.join(base_path, "bin/Reapr_1.0.18/src/samtools"), "mpileup", "-A", "-f", options.fasta_file, sorted_bam_location + ".bam"]
         out_cmd(p_fp.name, FNULL.name, call_arr)
         results(pileup_file)
         #warning("That command outputs to file: ", pileup_file)
         call(call_arr, stdout = p_fp, stderr = FNULL)
 
     if index:
-        call_arr = [os.path.join(base_path, "bin/Reapr_1.0.17/src/samtools"), "index", sorted_bam_location + ".bam"]
+        call_arr = [os.path.join(base_path, "bin/Reapr_1.0.18/src/samtools"), "index", sorted_bam_location + ".bam"]
         out_cmd(FNULL.name, FNULL.name, call_arr)
         call(call_arr, stdout = FNULL, stderr = FNULL)
 
@@ -1196,30 +1082,7 @@ def run_split_pileup(options, pileup_file):
     call_arr = [os.path.join(base_path, "src/py/split_pileup.py"), "-p", pileup_file, "-c", options.threads]
     out_cmd("","",call_arr)
     call(call_arr)
-
-
-def run_abundance_by_kmers(options):
-    """ Pileup based on k-mer abundances."""
-
-    coverage_filename = options.output_dir + '/coverage/temp_kmer.cvg'
-    coverage_file = open(coverage_filename, 'w')
-
-    options.kmer_pileup_file = options.output_dir + "/coverage/kmer_pileup"
-    options.coverage_file = options.output_dir + '/coverage/temp_kmer.cvg'
-
-    # ./src/py/abundance_by_kmers.py -a test/test_kmer_abun.fna -r test/test_kmers_abun_lib.fastq -k 15 -t 4 -e .98 -p tmp_kmer_abun_15_30 -m 30
-    call_arr = [os.path.join(base_path, "src/py/abundance_by_kmers.py"), \
-            "-a", options.fasta_file,\
-            "-r", options.reads_filenames,\
-            "-k", options.kmer_length,\
-            "-t", options.threads,\
-            "-e", ".98",
-            "-p", options.kmer_pileup_file]
-    out_cmd("","",call_arr)
-    call(call_arr, stdout=coverage_file)
-
-    return options.kmer_pileup_file
-
+    
 
 def run_depth_of_coverage(options, pileup_file):
     """ Run depth of coverage. """
@@ -1232,13 +1095,13 @@ def run_depth_of_coverage(options, pileup_file):
     call(call_arr)
     results(dp_fp)
 
-    return dp_fp
+    return dp_fp    
 
 
 def run_reapr(options, sorted_bam_location):
     """ Run REAPR. """
 
-    reapr_command = os.path.join(base_path, "bin/Reapr_1.0.17/reapr")
+    reapr_command = os.path.join(base_path, "bin/Reapr_1.0.18/reapr")
 
     #warning("About to run facheck")
     call_arr = [reapr_command, "facheck", options.fasta_file ]
@@ -1247,7 +1110,7 @@ def run_reapr(options, sorted_bam_location):
 
     reapr_output_dir = options.output_dir + "/reapr"
     reapr_perfect_prefix = options.output_dir + "/r_perfect_prefix"
-
+    
     #warning("About to run reapr pipeline")
     call_arr = [reapr_command, "pipeline", options.fasta_file,\
             sorted_bam_location + ".bam", reapr_output_dir]

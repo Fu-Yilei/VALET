@@ -1,0 +1,8 @@
+/usr/local/bioinf-recipes/reapr/Reapr_1.0.18/third_party/bamtools/build/src/api/CMakeFiles/APIHeaders.dir
+/usr/local/bioinf-recipes/reapr/Reapr_1.0.18/third_party/bamtools/build/src/api/CMakeFiles/AlgorithmsHeaders.dir
+/usr/local/bioinf-recipes/reapr/Reapr_1.0.18/third_party/bamtools/build/src/api/CMakeFiles/BamTools.dir
+/usr/local/bioinf-recipes/reapr/Reapr_1.0.18/third_party/bamtools/build/src/api/CMakeFiles/BamTools-static.dir
+/usr/local/bioinf-recipes/reapr/Reapr_1.0.18/third_party/bamtools/build/src/utils/CMakeFiles/BamTools-utils.dir
+/usr/local/bioinf-recipes/reapr/Reapr_1.0.18/third_party/bamtools/build/src/CMakeFiles/SharedHeaders.dir
+/usr/local/bioinf-recipes/reapr/Reapr_1.0.18/third_party/bamtools/build/src/toolkit/CMakeFiles/bamtools_cmd.dir
+/usr/local/bioinf-recipes/reapr/Reapr_1.0.18/third_party/bamtools/build/src/third_party/jsoncpp/CMakeFiles/jsoncpp.dir

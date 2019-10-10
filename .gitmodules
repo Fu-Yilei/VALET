@@ -1,0 +1,12 @@
+[submodule "bin/assembly-testing"]
+	path = bin/assembly-testing
+	url = git@github.com:jgluck/assembly-testing
+[submodule "bin/assembly-testing-doc"]
+	path = bin/assembly-testing-doc
+	url = git@github.com:JasonFil/assembly-testing
+[submodule "bin/depth-cover"]
+	path = bin/depth-cover
+	url = git@github.com:jalvz/depth-cover
+[submodule "bin/sickle"]
+	path = bin/sickle
+	url = git@github.com:najoshi/sickle

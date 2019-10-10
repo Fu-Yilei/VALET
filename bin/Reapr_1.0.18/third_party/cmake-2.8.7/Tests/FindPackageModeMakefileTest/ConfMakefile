@@ -1,0 +1,10 @@
+all: clean pngtest
+
+main.o: main.cpp
+	"/usr/bin/g++" $(CXXFLAGS) -c $(shell "/usr/local/bioinf-recipes/reapr/Reapr_1.0.18/third_party/cmake/bin/cmake" --find-package -DCMAKE_MODULE_PATH="/usr/local/bioinf-recipes/reapr/Reapr_1.0.18/third_party/cmake/Tests/FindPackageModeMakefileTest" -DNAME=Foo -DLANGUAGE=CXX -DCOMPILER_ID=GNU -DMODE=COMPILE) main.cpp
+
+pngtest: main.o
+	"/usr/bin/g++" $(LDFLAGS) -o pngtest main.o $(shell "/usr/local/bioinf-recipes/reapr/Reapr_1.0.18/third_party/cmake/bin/cmake" --find-package -DCMAKE_MODULE_PATH="/usr/local/bioinf-recipes/reapr/Reapr_1.0.18/third_party/cmake/Tests/FindPackageModeMakefileTest" -DNAME=Foo -DLANGUAGE=CXX -DCOMPILER_ID=GNU -DMODE=LINK)
+
+clean:
+	rm -f *.o pngtest

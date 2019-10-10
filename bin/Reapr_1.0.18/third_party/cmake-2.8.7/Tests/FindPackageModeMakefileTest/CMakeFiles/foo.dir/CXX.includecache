@@ -1,0 +1,10 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/usr/local/bioinf-recipes/reapr/Reapr_1.0.18/third_party/cmake/Tests/FindPackageModeMakefileTest/foo.cpp
+

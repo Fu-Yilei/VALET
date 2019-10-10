@@ -18,7 +18,6 @@ class BreakpointFinder:
         self.bin_contents = {}
         self.inverse_bin_contents = {}
         self.surviving_bins = {}
-        self.fasta_file = False
         self.getOptions()
         self.base_path = os.path.dirname(sys.argv[0])[:-len("/src/py")]
         self.set_locations()
@@ -26,18 +25,16 @@ class BreakpointFinder:
         self.contig_lengths = {}
         self.average_read_length = 0
         self.number_of_reads = 0
-
+    
     def set_locations(self):
-        #self.bowtie_dir = os.path.join(self.base_path, "bin/bowtie2-2.2.2/")
-        #self.bowtie_loc = self.bowtie_dir + "bowtie2"
-        self.bowtie_loc = "bowtie2"
+        self.bowtie_loc =  "bowtie2"
         self.bowtie_build_loc = "bowtie2-build"
         self.breakpoint_dir = self.options.output_dir
 
         self.bowtie_index =  self.breakpoint_dir + "bowtie-index/"
         self.index_prefix = self.bowtie_index+ "breakpoint"
         ensure_dir(self.bowtie_index)
-
+        
         self.sam_output_dir = self.breakpoint_dir + "sam/"
         self.sam_output_location = self.sam_output_dir + "breakpoints.sam"
         ensure_dir(self.sam_output_dir)
@@ -56,13 +53,13 @@ class BreakpointFinder:
         self.binned_breakpoint_file = self.breakpoint_dir + "binned_breakpoints.csv"
         self.collapsed_breakpoint_file = self.breakpoint_dir\
                 + "collapsed_breakpoints.csv"
-        self.bins_of_interest_file = self.breakpoint_dir + "interesting_bins.bed"
+        self.bins_of_interest_file = self.breakpoint_dir + "interesting_bins.gff"
         self.meta_file = self.breakpoint_dir + "meta_data.data"
 
         self.bin_contents_file = self.breakpoint_dir + "bin_contents.csv"
-
+        
         self.reciprical_file = self.breakpoint_dir + "reciprical_breakpoints.csv"
-
+    
     def read_coverages(self):
         with open(self.options.coverage_file) as cov_f:
             for line in cov_f:
@@ -78,15 +75,12 @@ class BreakpointFinder:
     def run_bowtie_2(self):
         for file_name in os.listdir(self.reads_dir):
             if "reads" in file_name:
-                read_type = "-q"
-                if self.fasta_file:
-                    read_type = "-f"
                 call_arr = [self.bowtie_loc, '-x', self.index_prefix, '-U',\
                          self.reads_dir + file_name,\
                          '-S', self.sam_output_dir + file_name + '.sam',\
                          '--un', self.singleton_dir + file_name + '.singletons',\
-                         '--al', self.conc_dir + file_name + '.reads', read_type,\
-                         '-I 50' , '-X 800', '-p', str(self.options.threads), '--mp 6']
+                         '--al', self.conc_dir + file_name + '.reads',
+                         '-q', '-I 50' , '-X 800', '-p', str(self.options.threads), '--mp 6']
                 #out_cmd(call_arr)
                 call(call_arr)
             else:
@@ -106,7 +100,7 @@ class BreakpointFinder:
                 open(self.binned_breakpoint_file,'w') as out_file:
             for contig_bundle in self.read_contig(breakpoints):
                 self.w_s = 1
-                self.w_e = self.w_s + self.bin_size - 1
+                self.w_e = self.w_s + self.bin_size
                 for match in contig_bundle:
                     match_split = match.split('\t')
                     match_start = int(match_split[1])
@@ -118,8 +112,8 @@ class BreakpointFinder:
                         out_file.write(match.strip()+('\t%s\n'%(self.w_s)))
                         self.add_to_bin_contents(match_split[0]+"\t"+str(self.w_s),match_split[2])
                     else:
-                        self.w_s = ((match_start / (self.bin_size+1)) * (self.bin_size+1)) #+1
-                        self.w_e = self.w_s + self.bin_size - 1
+                        self.w_s = ((match_start / (self.bin_size+1)) * (self.bin_size+1))+1
+                        self.w_e = self.w_s + self.bin_size 
                         out_file.write(match.strip()+('\t%s\n'%(self.w_s)))
                         self.add_to_bin_contents(match_split[0]+"\t"+str(self.w_s), match_split[2])
         warning("Done binning contigs")
@@ -185,7 +179,7 @@ class BreakpointFinder:
         warning("End pass 1")
         warning("Surviving bins assembled: %d surviving bins." % (len(self.surviving_bins)))
         warning("Ave read len: %f " % (self.average_read_length / float(self.number_of_reads)))
-
+        
         warning("About to output bin contents")
         self.output_bin_contents(True)
         warning("Bin contents outputted")
@@ -241,13 +235,23 @@ class BreakpointFinder:
                             #    warning("Skipping bin: %s because number of sisters: %d was low" % (current_key, num_sisters))
                             #    continue
                             rec = find_reciprical_pair_2(b_c_d_r, current_key)
-                            if rec == None:
-                                warning("No Reciprical for bin: %s so skipping" % (current_key))
-                                continue
-                            out_file.write("%s\t%d\t%d\tBreakpoint_finder\n"\
-                                    % (split_line[1],\
-                                    int(float(split_line[2]))-1,\
-                                    int(float(split_line[2]))+self.bin_size-1))
+                            #if rec == None:
+                            #    warning("No Reciprical for bin: %s so skipping" % (current_key))
+                            #    continue
+                            out_file.write("%s\tBreakpoint_finder"\
+                                    "\tBreakpoint_Finder_excessive_alignment"\
+                                    "\t%d\t%d\t%d\t.\t.\t"\
+                                    "singletons_aligned_in_bin=%f;color=%s"\
+                                    "number_of_sisters=%d;reciprocal=%s\n"\
+                                    %(split_line[1],\
+                                    int(float(split_line[2])),\
+                                    int(float(split_line[2]))+self.bin_size,\
+                                    int(float(split_line[2])),\
+                                    float(split_line[0]),\
+                                    color,\
+                                    num_sisters,\
+                                    str(rec)))
+
 
 
 
@@ -271,7 +275,7 @@ class BreakpointFinder:
                     warning("Removing bin: %s because eq matches: %f < cutoff: %f" % (split_l[1]+"\t"+split_l[2], (2* ave_read_len*num_matches_in_bin)/float(self.bin_size), avg_coverage_in_bin[split_l[1] + "\t" + split_l[2]]/4.0))
         warning("Surviving bins assembled: %d surviving bins." % (len(self.surviving_bins)))
         warning("Ave read len: %f " % (self.average_read_length / float(self.number_of_reads)))
-
+        
         warning("About to output bin contents")
         self.output_bin_contents(True)
         warning("Bin contents outputted")
@@ -325,7 +329,7 @@ class BreakpointFinder:
                                     "number_of_sisters=%d;reciprocal=%s\n"\
                                     %(split_line[1],\
                                     int(split_line[2]),\
-                                    int(split_line[2])+self.bin_size-1,\
+                                    int(split_line[2])+self.bin_size,\
                                     int(split_line[0]),\
                                     float(split_line[0]),\
                                     color,\
@@ -364,7 +368,7 @@ class BreakpointFinder:
                                     "singletons_aligned_in_bin=%f;color=%s\n"\
                                     %(split_line[1],\
                                     int(split_line[2]),\
-                                    int(split_line[2])+self.bin_size-1,\
+                                    int(split_line[2])+self.bin_size,\
                                     int(split_line[0]),\
                                     float(avg_bin_size), \
                                     float(std_dev),\
@@ -373,7 +377,7 @@ class BreakpointFinder:
                             self.surviving_bins.append(split_line[1] + "\t" + split_line[2])
         with open(self.meta_file, 'w') as meta_f:
             meta_f.write("Avg bin size: %f\nStd_Dev: %f\nCutoff: %f\n"\
-                    % (float(avg_bin_size), float(std_dev), float(cutoff)))
+                    % (float(avg_bin_size), float(std_dev), float(cutoff))) 
 
 
 
@@ -407,7 +411,7 @@ class BreakpointFinder:
             contig_bundle = []
             #warning("Read contig returned in : %f" %(time.time() - start_time))
             yield ret_bundle
-
+ 
     def read_in_lengths(self):
         log_file = open(self.breakpoint_dir + "log.log", 'w')
         for file_name in os.listdir(self.conc_dir):
@@ -418,7 +422,7 @@ class BreakpointFinder:
                     for (read,length) in self.read_read(reads_file):
                         #print ("Read: %s Length: %s" %(read,length))
                         self.read_lengths[read] = length
-
+    
     def read_read(self, fp):
         run_flag = True
         while run_flag:
@@ -449,7 +453,7 @@ class BreakpointFinder:
                                          int(line_components[2].split(":")[1])
                             if line[0] != '@':
                                 should_output = True
-
+                                
                                 self.average_read_length += len(line_components[9])
                                 self.number_of_reads += 1
                                 if line_components[2] != "*":
@@ -493,7 +497,7 @@ class BreakpointFinder:
         self.bin_breakpoints()
         self.collapse_bins()
         self.trim_bins_3()
-
+    
     def getOptions(self):
         parser = OptionParser()
         parser.add_option("-a", "--assembly-file", dest="assembly_file",\
@@ -512,9 +516,6 @@ class BreakpointFinder:
                 default="10", type="int")
         parser.add_option("-p", "--threads", dest="threads", \
                 help="Number of threads", default=10, type="int")
-        parser.add_option("-f", "--fasta", dest="fasta_file", \
-                help="Reads are in FASTA format file. (default is FASTQ)",
-                action="store_true", default=False)
         (options, args) = parser.parse_args()
         self.options = options
         if options.reads:
@@ -523,8 +524,6 @@ class BreakpointFinder:
             self.bin_size = options.bin_size
         else:
             self.bin_size = 500
-        if options.fasta_file:
-            self.fasta_file = True
         if not options.assembly_file:
             warning("Did not provide assembly file")
             parser.print_help()
@@ -640,3 +639,4 @@ def main():
 
 if __name__=='__main__':
     main()
+
